@@ -1,6 +1,6 @@
 # routes/db_routes.py
 from flask import Blueprint, request, jsonify
-from models.database_model import get_user_databases, import_database, get_database_schema
+from models.database_model import get_user_databases, import_database, get_database_schema, get_database_credentials
 from utils.prompt_generator import (
     generate_english_to_sql_prompt, 
     generate_sql_to_english_prompt,
@@ -20,9 +20,9 @@ db_routes = Blueprint('db_routes', __name__)
 # Add debug logging for API key
 print("\n=== Checking GROQ_API_KEY ===")
 if GROQ_API_KEY:
-    print("✅ GROQ_API_KEY is set (length:", len(GROQ_API_KEY), "characters)")
+    print("GROQ_API_KEY is set (length:", len(GROQ_API_KEY), "characters)")
 else:
-    print("❌ GROQ_API_KEY is not set!")
+    print("GROQ_API_KEY is not set!")
 
 @db_routes.route('/get-databases', methods=['GET'])
 def get_databases():
@@ -30,10 +30,10 @@ def get_databases():
     try:
         print("➡️ Fetching databases for user_id:", user_id)
         data = get_user_databases(user_id)
-        print("✅ Data fetched:", data)
+        print("Data fetched:", data)
         return jsonify(data), 200
     except Exception as e:
-        print("❌ ERROR in /get-databases:", e)
+        print("ERROR in /get-databases:", e)
         import traceback
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
@@ -42,14 +42,14 @@ def get_databases():
 def get_database_type():
     print("\n=== /get-database-type route called ===")
     db_name = request.args.get('db_name')
-    print(f"🔍 Requested database name: {db_name}")
+    print(f"Requested database name: {db_name}")
     
     if not db_name:
-        print("❌ ERROR: Database name is required")
+        print("ERROR: Database name is required")
         return jsonify({"error": "Database name is required"}), 400
     
     try:
-        print(f"🔍 Connecting to database to fetch type for: {db_name}")
+        print(f"Connecting to database to fetch type for: {db_name}")
         conn = get_connection()
         cursor = conn.cursor()
         
@@ -100,9 +100,16 @@ def import_db():
     user_id = data['user_id']
     db_name = data['db_name']
     db_type = data.get('db_type', 'local')
+    username = data.get('username')  # New: username for local databases
+    password = data.get('password')  # New: password for local databases
 
     try:
-        import_database(user_id, db_name, db_type)
+        # Get schema for the database
+        schema = get_database_schema(db_name)
+        schema_json = json.dumps(schema) if schema else None
+        
+        # Import database with credentials (encrypted)
+        import_database(user_id, db_name, db_type, schema_json, username, password)
         return jsonify({"message": "Database imported successfully."}), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -448,25 +455,34 @@ def execute_query():
         
         db_name = data.get('dbName')
         query = data.get('query')
+        user_id = data.get('user_id')  # Get user_id from request
 
         print(f"🔍 Database name: {db_name}")
         print(f"🔍 Query: {query}")
+        print(f"🔍 User ID: {user_id}")
 
         if not db_name or not query:
             error_msg = "Missing database name or query"
             print(f"❌ ERROR: {error_msg}")
             return jsonify({"error": error_msg}), 400
 
-        # Fetch db_type with enhanced debugging
-        print(f"🔍 Fetching database info for: {db_name}")
+        # Fetch db_type with user_id to ensure proper access
+        print(f"🔍 Fetching database info for: {db_name} and user_id: {user_id}")
         conn = get_connection()
         cursor = conn.cursor(pymysql.cursors.DictCursor)
-        cursor.execute("SELECT db_id, db_type FROM databases_info WHERE db_name = %s", (db_name,))
+        
+        if user_id:
+            # Look up database with user_id to ensure access control
+            cursor.execute("SELECT db_id, db_type FROM databases_info WHERE db_name = %s AND user_id = %s", (db_name, user_id))
+        else:
+            # Fallback to just db_name if user_id not provided
+            cursor.execute("SELECT db_id, db_type FROM databases_info WHERE db_name = %s", (db_name,))
+            
         db_info = cursor.fetchone()
         conn.close()
 
         if not db_info:
-            error_msg = f"Database '{db_name}' not found in databases_info"
+            error_msg = f"Database '{db_name}' not found or access denied for user_id: {user_id}"
             print(f"❌ ERROR: {error_msg}")
             return jsonify({"error": error_msg}), 400
 
@@ -480,8 +496,26 @@ def execute_query():
             try:
                 from pymongo import MongoClient
                 
+                # Get stored credentials for MongoDB
+                creds = get_database_credentials(db_info['db_id'])
+                
+                # Build connection string based on stored credentials
+                if creds and creds.get('username') and creds.get('password'):
+                    # Use authentication
+                    connection_string = f'mongodb://{creds["username"]}:{creds["password"]}@localhost:27017/'
+                    print(f"🔍 Connecting to MongoDB with authentication: {creds['username']}")
+                else:
+                    # No authentication
+                    connection_string = 'mongodb://localhost:27017/'
+                    print("🔍 Connecting to MongoDB without authentication")
+                
                 # Connect to MongoDB
-                client = MongoClient('mongodb://localhost:27017/')
+                client = MongoClient(connection_string, serverSelectionTimeoutMS=5000)
+                
+                # Test connection
+                client.admin.command('ping')
+                print("✅ MongoDB connection successful")
+                
                 db = client[db_name]
                 
                 # Parse and execute MongoDB query
@@ -664,18 +698,21 @@ def execute_query():
             print(f"🔍 Processing CLOUD database: {db_name}")
             print(f"🔍 Database ID: {db_info['db_id']}")
             
-            # Fetch cloud credentials with error handling
+            # Get credentials from cloud_db_credentials table (includes host_url)
             try:
+                print(f"🔍 Calling get_cloud_db_credentials for db_id: {db_info['db_id']}")
                 creds = get_cloud_db_credentials(db_info['db_id'])
                 print(f"🔍 Cloud credentials fetched: {creds is not None}")
+                print(f"🔍 Credentials type: {type(creds)}")
                 
                 if not creds:
                     error_msg = f"Cloud DB credentials not found for database ID: {db_info['db_id']}"
                     print(f"❌ ERROR: {error_msg}")
                     return jsonify({"error": error_msg}), 500
                 
-                print(f"🔍 Connecting to cloud database: {creds['host_url']}")
-                print(f"🔍 Username: {creds['username']}")
+                print(f"🔍 Credentials keys: {list(creds.keys()) if creds else 'None'}")
+                print(f"🔍 Connecting to cloud database: {creds.get('host_url', 'NOT_FOUND')}")
+                print(f"🔍 Username: {creds.get('username', 'NOT_FOUND')}")
                 print(f"🔍 Database name: {db_name}")
                 
                 # Connect to cloud database with timeout and error handling
@@ -699,17 +736,37 @@ def execute_query():
                 traceback.print_exc()
                 return jsonify({"error": error_msg}), 500
         else:
-            # Local MySQL
+            # Local MySQL - use stored credentials if available
             print(f"🔍 Connecting to local MySQL database: {db_name}")
             
-            conn = pymysql.connect(
-                host="localhost",
-                user="root",
-                password="Rakshita2305",
-                database=db_name,
-                cursorclass=pymysql.cursors.DictCursor,
-                autocommit=False  # Disable autocommit for transaction control
-            )
+            try:
+                # Try to get stored credentials first
+                creds = get_database_credentials(db_info['db_id'])
+                if creds:
+                    print(f"🔍 Using stored credentials for local database")
+                    conn = pymysql.connect(
+                        host="localhost",
+                        user=creds['username'],
+                        password=creds['password'],
+                        database=db_name,
+                        cursorclass=pymysql.cursors.DictCursor,
+                        autocommit=False
+                    )
+                else:
+                    # Fallback to default credentials
+                    print(f"🔍 Using default credentials for local database")
+                    conn = pymysql.connect(
+                        host="localhost",
+                        user="root",
+                        password="Rakshita2305",
+                        database=db_name,
+                        cursorclass=pymysql.cursors.DictCursor,
+                        autocommit=False
+                    )
+            except Exception as e:
+                error_msg = f"Failed to connect to local database: {str(e)}"
+                print(f"❌ ERROR: {error_msg}")
+                return jsonify({"error": error_msg}), 500
         
         # For MySQL databases (both local and cloud)
         cursor = conn.cursor()
@@ -895,10 +952,12 @@ def import_cloud_database():
         return jsonify({'error': f'Failed to connect or fetch schema: {str(e)}'}), 500
 
     try:
-        # Store in databases_info
-        db_id = import_database(user_id, db_name, db_type, json.dumps(schema))
-        # Store credentials
+        # Store in databases_info with encrypted credentials (for general access)
+        db_id = import_database(user_id, db_name, db_type, json.dumps(schema), username, password)
+        
+        # Store in cloud_db_credentials with host_url (for cloud-specific access)
         insert_cloud_db_credentials(db_id, host_url, username, password)
+        
         return jsonify({'message': 'Cloud database imported successfully.'}), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -908,6 +967,8 @@ def import_mongodb():
     data = request.get_json()
     user_id = data.get('user_id')
     db_name = data.get('db_name')
+    username = data.get('username')  # Optional
+    password = data.get('password')  # Optional
 
     if not all([user_id, db_name]):
         return jsonify({'error': 'Missing required fields'}), 400
@@ -915,8 +976,22 @@ def import_mongodb():
     try:
         from pymongo import MongoClient
         
+        # Build connection string based on credentials
+        if username and password:
+            # Use authentication
+            connection_string = f'mongodb://{username}:{password}@localhost:27017/'
+            print(f"🔍 Connecting to MongoDB with authentication: {username}")
+        else:
+            # No authentication
+            connection_string = 'mongodb://localhost:27017/'
+            print("🔍 Connecting to MongoDB without authentication")
+        
         # Connect to MongoDB
-        client = MongoClient('mongodb://localhost:27017/')
+        client = MongoClient(connection_string, serverSelectionTimeoutMS=5000)
+        
+        # Test connection
+        client.admin.command('ping')
+        print("✅ MongoDB connection successful")
         
         # Check if database exists
         if db_name not in client.list_database_names():
@@ -927,6 +1002,8 @@ def import_mongodb():
         
         if not collections:
             return jsonify({'error': f'No collections found in database "{db_name}"'}), 400
+        
+        print(f"✅ Found {len(collections)} collections in database '{db_name}'")
         
         # Build schema
         schema = []
@@ -973,8 +1050,8 @@ def import_mongodb():
         
         client.close()
         
-        # Store in databases_info
-        db_id = import_database(user_id, db_name, 'mongodb', json.dumps(schema))
+        # Store in databases_info with encrypted credentials (only if provided)
+        db_id = import_database(user_id, db_name, 'mongodb', json.dumps(schema), username, password)
         
         return jsonify({
             'message': f'MongoDB database "{db_name}" imported successfully with {len(schema)} collections.',
@@ -982,6 +1059,9 @@ def import_mongodb():
         }), 201
         
     except Exception as e:
+        print(f"❌ MongoDB import error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': f'Failed to import MongoDB database: {str(e)}'}), 500
 
 @db_routes.route('/convert-sql-to-mongodb', methods=['POST'])

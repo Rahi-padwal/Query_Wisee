@@ -1,6 +1,11 @@
 import pymysql.cursors
 from db_config import get_connection
 from pymongo import MongoClient
+from utils.crypto_utils import load_public_key, load_private_key, ecc_encrypt, ecc_decrypt
+
+# ECC key loading (load once)
+ECC_PUBLIC_KEY = load_public_key()
+ECC_PRIVATE_KEY = load_private_key()
 
 def get_user_databases(user_id):
     conn = get_connection()
@@ -198,7 +203,7 @@ def get_database_schema(db_name):
             traceback.print_exc()
             return []
 
-def import_database(user_id, db_name, db_type, schema_json=None):
+def import_database(user_id, db_name, db_type, schema_json=None, username=None, password=None):
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -208,18 +213,52 @@ def import_database(user_id, db_name, db_type, schema_json=None):
         conn.close()
         raise Exception("Database already imported")
 
+    # Encrypt credentials if provided (for all database types)
+    username_encrypted = None
+    password_encrypted = None
+    
+    if username and password:
+        try:
+            username_encrypted = ecc_encrypt(ECC_PUBLIC_KEY, username.encode())
+            password_encrypted = ecc_encrypt(ECC_PUBLIC_KEY, password.encode())
+            print(f"✅ Credentials encrypted for database: {db_name}")
+        except Exception as e:
+            print(f"❌ Failed to encrypt credentials: {e}")
+            conn.close()
+            raise Exception(f"Failed to encrypt credentials: {str(e)}")
+
     if schema_json is not None:
         cursor.execute("""
-            INSERT INTO databases_info (user_id, db_name, db_type, schema_json, shared, created_at)
-            VALUES (%s, %s, %s, %s, 0, NOW())
-        """, (user_id, db_name, db_type, schema_json))
+            INSERT INTO databases_info (user_id, db_name, db_type, schema_json, shared, created_at, db_username_encrypted, db_password_encrypted)
+            VALUES (%s, %s, %s, %s, 0, NOW(), %s, %s)
+        """, (user_id, db_name, db_type, schema_json, username_encrypted, password_encrypted))
     else:
         cursor.execute("""
-            INSERT INTO databases_info (user_id, db_name, db_type, shared, created_at)
-            VALUES (%s, %s, %s, 0, NOW())
-        """, (user_id, db_name, db_type))
+            INSERT INTO databases_info (user_id, db_name, db_type, shared, created_at, db_username_encrypted, db_password_encrypted)
+            VALUES (%s, %s, %s, 0, NOW(), %s, %s)
+        """, (user_id, db_name, db_type, username_encrypted, password_encrypted))
     
     conn.commit()
     db_id = cursor.lastrowid
     conn.close()
     return db_id
+
+def get_database_credentials(db_id):
+    """Get decrypted credentials for a database"""
+    conn = get_connection()
+    cursor = conn.cursor(pymysql.cursors.DictCursor)
+    
+    cursor.execute("SELECT db_username_encrypted, db_password_encrypted FROM databases_info WHERE db_id = %s", (db_id,))
+    result = cursor.fetchone()
+    conn.close()
+    
+    if result and result.get('db_username_encrypted') and result.get('db_password_encrypted'):
+        try:
+            username = ecc_decrypt(ECC_PRIVATE_KEY, result['db_username_encrypted']).decode('utf-8')
+            password = ecc_decrypt(ECC_PRIVATE_KEY, result['db_password_encrypted']).decode('utf-8')
+            return {'username': username, 'password': password}
+        except Exception as e:
+            print(f"❌ Failed to decrypt credentials: {e}")
+            return None
+    
+    return None

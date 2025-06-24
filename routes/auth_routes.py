@@ -16,5 +16,11 @@ def login():
     data = request.json
     user = validate_user(data['email'], data['password'])
     if user:
-        return jsonify({"message": "Login successful", "user_id": user['user_id']}), 200
+        # Return the full user object (excluding sensitive data)
+        user_response = {
+            'user_id': user['user_id'],
+            'username': user['username'],
+            'email': user['email']
+        }
+        return jsonify({"message": "Login successful", "user": user_response}), 200
     return jsonify({"error": "Invalid credentials"}), 401

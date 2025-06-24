@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dashboard | AI SQL Assistant</title>
+  <title>Dashboard | QueryWise</title>
   <link rel="stylesheet" href="../styles/main.css" />
   <link rel="stylesheet" href="../styles/dashboard.css" />
   <link rel="stylesheet" href="../styles/dialog.css" />
@@ -14,7 +14,7 @@
     <!-- Sidebar -->
     <aside class="sidebar">
       <div class="sidebar-header">
-        <div class="logo">AI SQL</div>
+        <div class="logo">QueryWise</div>
       </div>
       <nav class="sidebar-nav">
         <button class="nav-btn active">
@@ -42,17 +42,12 @@
       </header>
 
       <div class="content-area">
-        <!-- Two Category Boxes -->
-        <div class="dashboard-boxes">
+        <!-- Single centered database box -->
+        <div class="dashboard-boxes centered">
           <div class="summary-card" id="yourDBCard">
             <h2>Your Databases</h2>
             <p id="yourDBCount">Loading...</p>
             <button onclick="window.location.href='your_databases.html'" class="btn primary">View All</button>
-          </div>
-          <div class="summary-card" id="sharedDBCard">
-            <h2>Shared With You</h2>
-            <p id="sharedDBCount">Loading...</p>
-            <button onclick="window.location.href='shared_databases.html'" class="btn primary">View All</button>
           </div>
         </div>
 
@@ -113,6 +108,48 @@
           <div style="display: flex; gap: 10px;">
             <button type="submit" class="btn primary">Import</button>
             <button type="button" class="btn secondary" onclick="closeCloudImportDialog()">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MySQL Database Import Dialog -->
+  <div id="mysqlImportDialog" class="dialog-overlay" style="display: none;">
+    <div class="dialog-content">
+      <div class="dialog-header">
+        <h2>MySQL Database Import</h2>
+        <button class="close-btn" onclick="closeMySQLImportDialog()">×</button>
+      </div>
+      <div class="dialog-body">
+        <form id="mysqlImportForm" onsubmit="submitMySQLImport(event)">
+          <label>Database Name:<br><input type="text" id="mysqlDbName" required></label><br><br>
+          <label>Username:<br><input type="text" id="mysqlUsername" required></label><br><br>
+          <label>Password:<br><input type="password" id="mysqlPassword" required></label><br><br>
+          <div style="display: flex; gap: 10px;">
+            <button type="submit" class="btn primary">Import</button>
+            <button type="button" class="btn secondary" onclick="closeMySQLImportDialog()">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MongoDB Database Import Dialog -->
+  <div id="mongoImportDialog" class="dialog-overlay" style="display: none;">
+    <div class="dialog-content">
+      <div class="dialog-header">
+        <h2>MongoDB Database Import</h2>
+        <button class="close-btn" onclick="closeMongoImportDialog()">×</button>
+      </div>
+      <div class="dialog-body">
+        <form id="mongoImportForm" onsubmit="submitMongoImport(event)">
+          <label>Database Name:<br><input type="text" id="mongoDbName" required placeholder="Enter database name"></label><br><br>
+          <label>Username (optional):<br><input type="text" id="mongoUsername" placeholder="Leave empty for no authentication"></label><br><br>
+          <label>Password (optional):<br><input type="password" id="mongoPassword" placeholder="Leave empty for no authentication"></label><br><br>
+          <div style="display: flex; gap: 10px;">
+            <button type="submit" class="btn primary">Import</button>
+            <button type="button" class="btn secondary" onclick="closeMongoImportDialog()">Cancel</button>
           </div>
         </form>
       </div>

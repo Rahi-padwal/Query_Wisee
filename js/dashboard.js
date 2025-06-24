@@ -14,7 +14,6 @@ document.addEventListener("DOMContentLoaded", () => {
     .then((data) => {
       cachedData = data;
       document.getElementById("yourDBCount").textContent = `${data.own.length} database(s)`;
-      document.getElementById("sharedDBCount").textContent = `${data.shared.length} database(s)`;
     })
     .catch((err) => {
       console.error("Failed to fetch databases:", err);
@@ -53,6 +52,20 @@ function showCategory(type) {
     name.textContent = db.db_name + (type === "shared" ? " (shared)" : "");
     card.appendChild(name);
 
+    // Add database type line
+    const typeLine = document.createElement("p");
+    // If you have a more specific type for cloud DBs, use db.cloud_type or similar
+    let displayType = db.db_type;
+    if (db.db_type === "cloud" && db.cloud_type) {
+      displayType = db.cloud_type + " (Cloud)";
+    } else if (db.db_type === "cloud") {
+      displayType = "Cloud";
+    }
+    typeLine.textContent = `Type: ${displayType}`;
+    typeLine.style.fontSize = "0.95rem";
+    typeLine.style.color = "#555";
+    card.appendChild(typeLine);
+
     if (db.created_at) {
       const date = document.createElement("p");
       const formattedDate = new Date(db.created_at).toLocaleDateString();
@@ -71,6 +84,18 @@ function showCategory(type) {
     };
     card.appendChild(btn);
 
+    // Add share button for cloud DBs
+    if (db.db_type === "cloud") {
+      const shareBtn = document.createElement("button");
+      shareBtn.textContent = "Share";
+      shareBtn.className = "btn secondary small";
+      shareBtn.onclick = () => {
+        // TODO: Implement your share logic here (e.g., open share dialog, copy link, etc.)
+        alert(`Share link for ${db.db_name}`);
+      };
+      card.appendChild(shareBtn);
+    }
+
     dbGrid.appendChild(card);
   });
 }
@@ -85,20 +110,35 @@ function closeImportDialog() {
 
 function importFromMySQL() {
   closeImportDialog();
+  document.getElementById("mysqlImportDialog").style.display = "flex";
+}
 
+function closeMySQLImportDialog() {
+  document.getElementById("mysqlImportDialog").style.display = "none";
+}
+
+function submitMySQLImport(event) {
+  event.preventDefault();
   const user = JSON.parse(localStorage.getItem("currentUser"));
   if (!user) {
     window.location.href = "login.html";
     return;
   }
-
-  const dbName = prompt("Enter the name of the MySQL database to import:");
-  if (!dbName) return;
-
+  
+  const db_name = document.getElementById("mysqlDbName").value;
+  const username = document.getElementById("mysqlUsername").value;
+  const password = document.getElementById("mysqlPassword").value;
+  
   fetch("http://127.0.0.1:5001/import-database", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user_id: user.user_id, db_name: dbName }),
+    body: JSON.stringify({
+      user_id: user.user_id,
+      db_name,
+      db_type: "local",
+      username,
+      password
+    })
   })
     .then((res) => res.json())
     .then((data) => {
@@ -113,6 +153,7 @@ function importFromMySQL() {
       alert("Failed to connect to backend.");
       console.error(err);
     });
+  closeMySQLImportDialog();
 }
 
 function importFromCloud() {
@@ -165,20 +206,45 @@ function submitCloudImport(event) {
 
 function importFromMongoDB() {
   closeImportDialog();
+  document.getElementById("mongoImportDialog").style.display = "flex";
+}
 
+function closeMongoImportDialog() {
+  document.getElementById("mongoImportDialog").style.display = "none";
+}
+
+function submitMongoImport(event) {
+  event.preventDefault();
   const user = JSON.parse(localStorage.getItem("currentUser"));
   if (!user) {
     window.location.href = "login.html";
     return;
   }
-
-  const dbName = prompt("Enter the name of the MongoDB database to import:");
-  if (!dbName) return;
-
+  
+  const db_name = document.getElementById("mongoDbName").value;
+  const username = document.getElementById("mongoUsername").value.trim();
+  const password = document.getElementById("mongoPassword").value.trim();
+  
+  // Only include credentials if both username and password are provided
+  const requestBody = {
+    user_id: user.user_id,
+    db_name,
+    db_type: "mongodb"
+  };
+  
+  // Add credentials only if both username and password are provided
+  if (username && password) {
+    requestBody.username = username;
+    requestBody.password = password;
+  } else if (username || password) {
+    alert("Please provide both username and password, or leave both empty for no authentication.");
+    return;
+  }
+  
   fetch("http://127.0.0.1:5001/import-mongodb", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user_id: user.user_id, db_name: dbName }),
+    body: JSON.stringify(requestBody)
   })
     .then((res) => res.json())
     .then((data) => {
@@ -193,4 +259,5 @@ function importFromMongoDB() {
       alert("Failed to connect to backend.");
       console.error(err);
     });
+  closeMongoImportDialog();
 }

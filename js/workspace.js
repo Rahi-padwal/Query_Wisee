@@ -222,17 +222,24 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Function to execute SQL query
 function runQuery() {
-    const query = document.getElementById('sqlInput').value;
+    const query = document.getElementById('sqlInput').value.trim();
+    const outputBox = document.getElementById('outputBox');
+    
     if (!query) {
-        alert('Please enter a SQL query');
+        alert('Please enter a query');
         return;
     }
 
-    // Show loading state
-    const outputBox = document.getElementById('outputBox');
-    outputBox.innerHTML = '<div style="text-align: center; padding: 20px;">Executing query...</div>';
+    // Get user data from localStorage
+    const user = JSON.parse(localStorage.getItem('user'));
+    const user_id = user ? user.user_id : null;
+    
+    console.log('Executing query for user_id:', user_id);
 
-    // Send query to backend
+    // Show loading state
+    outputBox.innerHTML = '<div style="color: #682bd7; padding: 10px;">Executing query...</div>';
+
+    // Execute query
     fetch('http://127.0.0.1:5001/execute-query', {
         method: 'POST',
         headers: {
@@ -240,7 +247,8 @@ function runQuery() {
         },
         body: JSON.stringify({
             dbName: dbName,
-            query: query
+            query: query,
+            user_id: user_id  // Include user_id in the request
         })
     })
     .then(response => {

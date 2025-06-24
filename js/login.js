@@ -17,16 +17,17 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await response.json();
 
             if (response.status === 200) {
-                // Store user in localStorage
-                localStorage.setItem('currentUser', JSON.stringify(result));
+                // Store user in localStorage (using the user object from response)
+                localStorage.setItem('user', JSON.stringify(result.user));
+                localStorage.setItem('currentUser', JSON.stringify(result.user)); // Keep both for compatibility
                 // Redirect to dashboard
-                window.location.href = '../pages/dashboard.html';
+                window.location.href = 'dashboard.html';
             } else {
                 alert(result.error || "Login failed.");
             }
         } catch (err) {
-            alert('❌ Error connecting to backend.');
-            console.error(err);
+            alert('❌ Error connecting to backend. Please check if the server is running.');
+            console.error('Login error:', err);
         }
     });
 });
