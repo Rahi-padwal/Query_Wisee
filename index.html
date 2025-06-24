@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI SQL Assistant</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/auth.css">
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h1>AI SQL Assistant</h1>
+                <p>Welcome to your SQL workspace</p>
+            </div>
+            <div class="auth-actions">
+                <a href="pages/login.html" class="btn primary">Sign In</a>
+                <a href="pages/register.html" class="btn secondary">Create Account</a>
+            </div>
+        </div>
+    </div>
+    <script>
+        // Check if user is already logged in
+        document.addEventListener('DOMContentLoaded', () => {
+            const currentUser = localStorage.getItem('currentUser');
+            if (currentUser) {
+                window.location.href = 'pages/dashboard.html';
+            }
+        });
+    </script>
+</body>
+</html> 

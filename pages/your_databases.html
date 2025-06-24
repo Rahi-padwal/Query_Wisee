@@ -1,0 +1,51 @@
+<!-- pages/your_databases.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Your Databases | AI SQL Assistant</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="../styles/main.css" />
+  <link rel="stylesheet" href="../styles/dashboard.css" />
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar (Optional) -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">AI SQL</div>
+      </div>
+      <nav class="sidebar-nav">
+        <button class="nav-btn" onclick="window.location.href='dashboard.html'">
+          <span class="icon">🏠</span>
+          <span class="label">Dashboard</span>
+        </button>
+        <button class="nav-btn active">
+          <span class="icon">🗄️</span>
+          <span class="label">Your Databases</span>
+        </button>
+        <button class="nav-btn">
+          <span class="icon">⚙️</span>
+          <span class="label">Settings</span>
+        </button>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="topbar">
+        <h1>Your Imported Databases</h1>
+        <button class="btn secondary" onclick="logout()">Logout</button>
+      </header>
+
+      <div class="content-area">
+        <div class="db-grid" id="dbGrid">
+          <!-- JS will populate this -->
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="../js/your_databases.js"></script>
+</body>
+</html>

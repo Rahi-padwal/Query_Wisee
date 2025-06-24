@@ -1,0 +1,122 @@
+<!-- pages/dashboard.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard | AI SQL Assistant</title>
+  <link rel="stylesheet" href="../styles/main.css" />
+  <link rel="stylesheet" href="../styles/dashboard.css" />
+  <link rel="stylesheet" href="../styles/dialog.css" />
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">AI SQL</div>
+      </div>
+      <nav class="sidebar-nav">
+        <button class="nav-btn active">
+          <span class="icon">🏠</span>
+          <span class="label">Home</span>
+        </button>
+        <button class="nav-btn">
+          <span class="icon">🗄️</span>
+          <span class="label">Databases</span>
+        </button>
+        <button class="nav-btn">
+          <span class="icon">⚙️</span>
+          <span class="label">Settings</span>
+        </button>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="topbar">
+        <h1>Dashboard</h1>
+        <div class="topbar-actions">
+          <button class="btn secondary" onclick="logout()">Logout</button>
+        </div>
+      </header>
+
+      <div class="content-area">
+        <!-- Two Category Boxes -->
+        <div class="dashboard-boxes">
+          <div class="summary-card" id="yourDBCard">
+            <h2>Your Databases</h2>
+            <p id="yourDBCount">Loading...</p>
+            <button onclick="window.location.href='your_databases.html'" class="btn primary">View All</button>
+          </div>
+          <div class="summary-card" id="sharedDBCard">
+            <h2>Shared With You</h2>
+            <p id="sharedDBCount">Loading...</p>
+            <button onclick="window.location.href='shared_databases.html'" class="btn primary">View All</button>
+          </div>
+        </div>
+
+        <!-- Grid for database list (not used anymore) -->
+        <div class="db-grid" id="dbGrid" style="display: none;"></div>
+      </div>
+
+      <!-- Floating Import Button -->
+      <button class="import-btn" title="Import Database">
+        <span class="icon">➕</span>
+        <span class="label">Import Database</span>
+      </button>
+    </main>
+  </div>
+
+  <script src="../js/dashboard.js"></script>
+
+  <!-- Import Database Dialog -->
+  <div id="importDialog" class="dialog-overlay" style="display: none;">
+    <div class="dialog-content">
+      <div class="dialog-header">
+        <h2>Import Database</h2>
+        <button class="close-btn" onclick="closeImportDialog()">×</button>
+      </div>
+      <div class="dialog-body">
+        <p>Choose your database source:</p>
+        <div class="import-options">
+          <button class="import-option" onclick="importFromMySQL()">
+            <span class="icon">🐬</span>
+            <span class="label">MySQL Server</span>
+          </button>
+          <button class="import-option" onclick="importFromCloud()">
+            <span class="icon">☁️</span>
+            <span class="label">Cloud Database</span>
+          </button>
+          <button class="import-option" onclick="importFromMongoDB()">
+            <span class="icon">🍃</span>
+            <span class="label">MongoDB</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cloud Database Import Dialog -->
+  <div id="cloudImportDialog" class="dialog-overlay" style="display: none;">
+    <div class="dialog-content">
+      <div class="dialog-header">
+        <h2>Cloud Database Import</h2>
+        <button class="close-btn" onclick="closeCloudImportDialog()">×</button>
+      </div>
+      <div class="dialog-body">
+        <form id="cloudImportForm" onsubmit="submitCloudImport(event)">
+          <label>Host URL:<br><input type="text" id="cloudHostUrl" required></label><br><br>
+          <label>Username:<br><input type="text" id="cloudUsername" required></label><br><br>
+          <label>Password:<br><input type="password" id="cloudPassword" required></label><br><br>
+          <label>Database Name:<br><input type="text" id="cloudDbName" required></label><br><br>
+          <div style="display: flex; gap: 10px;">
+            <button type="submit" class="btn primary">Import</button>
+            <button type="button" class="btn secondary" onclick="closeCloudImportDialog()">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

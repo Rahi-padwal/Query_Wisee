@@ -1,0 +1,31 @@
+.voice-input-container {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 10px;
+}
+
+.voice-btn {
+    width: 40px;
+    height: 40px;
+    background-color: #4a90e2;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.3s ease;
+}
+
+.voice-btn:hover {
+    background-color: #357abd;
+}
+
+.voice-btn.recording {
+    background-color: #e74c3c;
+}
+
+.voice-btn i {
+    font-size: 16px;
+} 
