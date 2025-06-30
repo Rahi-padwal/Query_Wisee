@@ -58,7 +58,7 @@ class Chatbot {
 
     async loadChatHistory() {
         try {
-            const response = await fetch(`http://127.0.0.1:5001/get-chat-history?user_id=${this.userId}&db_name=${this.dbName}`);
+            const response = await fetch(`http://127.0.0.1:5501/get-chat-history?user_id=${this.userId}&db_name=${this.dbName}`);
             const data = await response.json();
             
             if (data.chat_history) {
@@ -127,7 +127,7 @@ class Chatbot {
             };
             console.log('Request body:', requestBody);
             
-            const response = await fetch('http://127.0.0.1:5001/send-message', {
+            const response = await fetch('http://127.0.0.1:5501/send-message', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

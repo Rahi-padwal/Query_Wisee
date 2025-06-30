@@ -5,7 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
   
-    fetch(`http://127.0.0.1:5001/get-databases?user_id=${user.user_id}`)
+    fetch(`http://127.0.0.1:5501/get-databases?user_id=${user.user_id}`)
       .then((res) => res.json())
       .then((data) => {
         const ownDatabases = data.own || [];
@@ -20,6 +20,39 @@ document.addEventListener("DOMContentLoaded", () => {
         ownDatabases.forEach((db) => {
           const card = document.createElement("div");
           card.className = "db-card";
+  
+          // Trash icon (top right)
+          const trash = document.createElement("span");
+          trash.innerHTML = "&#128465;"; // Unicode trash can
+          trash.className = "trash-icon";
+          trash.title = "Delete database";
+          trash.style.cssText = "position:absolute;top:8px;right:12px;cursor:pointer;font-size:1.2em;color:#c00;z-index:2;";
+          trash.onclick = (e) => {
+            e.stopPropagation();
+            if (confirm(`Are you sure you want to delete '${db.db_name}'?`)) {
+              fetch('http://127.0.0.1:5501/delete-database', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  user_id: db.user_id,
+                  db_name: db.db_name,
+                  db_type: db.db_type,
+                  db_id: db.db_id
+                })
+              })
+                .then(res => res.json())
+                .then(result => {
+                  if (result.message) {
+                    card.remove();
+                  } else {
+                    alert(result.error || 'Failed to delete database.');
+                  }
+                })
+                .catch(() => alert('Failed to delete database.'));
+            }
+          };
+          card.style.position = "relative";
+          card.appendChild(trash);
   
           const name = document.createElement("h3");
           name.textContent = db.db_name;

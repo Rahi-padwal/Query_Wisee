@@ -13,7 +13,7 @@ function fetchDatabaseType() {
         return Promise.resolve(null);
     }
 
-    return fetch(`http://127.0.0.1:5001/get-database-type?db_name=${encodeURIComponent(dbName)}`)
+    return fetch(`http://127.0.0.1:5501/get-database-type?db_name=${encodeURIComponent(dbName)}`)
         .then(response => {
             if (!response.ok) {
                 console.warn(`Database type endpoint returned ${response.status}, will detect from schema`);
@@ -115,7 +115,7 @@ function loadSchema() {
     console.log('Fetching schema for database:', dbName);
 
     // Fetch schema from backend
-    fetch(`http://127.0.0.1:5001/get-schema?db_name=${encodeURIComponent(dbName)}`)
+    fetch(`http://127.0.0.1:5501/get-schema?db_name=${encodeURIComponent(dbName)}`)
         .then(response => {
             console.log('Schema response status:', response.status);
             if (!response.ok) {
@@ -223,8 +223,6 @@ document.addEventListener('DOMContentLoaded', function() {
 // Function to execute SQL query
 function runQuery() {
     const query = document.getElementById('sqlInput').value.trim();
-    const outputBox = document.getElementById('outputBox');
-    
     if (!query) {
         alert('Please enter a query');
         return;
@@ -233,14 +231,19 @@ function runQuery() {
     // Get user data from localStorage
     const user = JSON.parse(localStorage.getItem('user'));
     const user_id = user ? user.user_id : null;
+
+    console.log('Running query:', query);
+    console.log('Database name:', dbName);
+    console.log('User ID:', user_id);
+    console.log('Database type:', databaseType);
+
+    const outputBox = document.getElementById('outputBox');
+    outputBox.innerHTML = '<div style="color: #682bd7; padding: 10px;">Executing query...</div>';
     
     console.log('Executing query for user_id:', user_id);
 
-    // Show loading state
-    outputBox.innerHTML = '<div style="color: #682bd7; padding: 10px;">Executing query...</div>';
-
     // Execute query
-    fetch('http://127.0.0.1:5001/execute-query', {
+    fetch('http://127.0.0.1:5501/execute-query', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -253,13 +256,38 @@ function runQuery() {
     })
     .then(response => {
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            // Handle 403 errors specially for blocked operations
+            if (response.status === 403) {
+                return response.json().then(data => {
+                    throw new Error(`BLOCKED_OPERATION: ${data.error || 'Operation blocked'}`);
+                });
+            }
+            // For other errors, try to get the error message from the response
+            return response.json().then(data => {
+                console.log('Error response data:', data);
+                throw new Error(`HTTP ${response.status}: ${data.error || 'Unknown error'}`);
+            }).catch(parseError => {
+                console.log('Could not parse error response:', parseError);
+                // If we can't parse the JSON, just throw the status error
+                throw new Error(`HTTP error! status: ${response.status}`);
+            });
         }
         return response.json();
     })
     .then(data => {
         if (data.error) {
-            outputBox.innerHTML = `<div style="color: #ff6b6b; padding: 10px; background: #fff5f5; border-radius: 4px;">${data.error}</div>`;
+            // Special handling for cloud database modification blocking
+            if (data.blocked_operation) {
+                outputBox.innerHTML = `<div style="color: #e74c3c; padding: 15px; background: #fdf2f2; border-radius: 8px; border-left: 4px solid #e74c3c; font-weight: bold;">
+                    <div style="font-size: 1.1em; margin-bottom: 8px;">🚫 Cloud Database Protection</div>
+                    <div>${data.error}</div>
+                    <div style="margin-top: 10px; font-size: 0.9em; color: #666;">
+                        Only SELECT queries are allowed for cloud databases to protect your data.
+                    </div>
+                </div>`;
+            } else {
+                outputBox.innerHTML = `<div style="color: #ff6b6b; padding: 10px; background: #fff5f5; border-radius: 4px;">${data.error}</div>`;
+            }
         } else {
             let resultHtml = '';
             
@@ -380,7 +408,20 @@ function runQuery() {
     })
     .catch(error => {
         console.error('Error executing query:', error);
-        outputBox.innerHTML = `<div style="color: #ff6b6b; padding: 10px; background: #fff5f5; border-radius: 4px;">Error: ${error.message}</div>`;
+        
+        // Check if this is a blocked operation error
+        if (error.message && error.message.startsWith('BLOCKED_OPERATION:')) {
+            const blockedMessage = error.message.replace('BLOCKED_OPERATION: ', '');
+            outputBox.innerHTML = `<div style="color: #e74c3c; padding: 15px; background: #fdf2f2; border-radius: 8px; border-left: 4px solid #e74c3c; font-weight: bold;">
+                <div style="font-size: 1.1em; margin-bottom: 8px;">🚫 Cloud Database Protection</div>
+                <div>${blockedMessage}</div>
+                <div style="margin-top: 10px; font-size: 0.9em; color: #666;">
+                    Only SELECT queries are allowed for cloud databases to protect your data.
+                </div>
+            </div>`;
+        } else {
+            outputBox.innerHTML = `<div style="color: #ff6b6b; padding: 10px; background: #fff5f5; border-radius: 4px;">Error: ${error.message}</div>`;
+        }
     });
 }
 
@@ -419,7 +460,7 @@ function convertToSQL() {
     sqlInput.value = 'Converting...';
 
     // Send to backend for conversion
-    fetch('http://127.0.0.1:5001/convert-to-sql', {
+    fetch('http://127.0.0.1:5501/convert-to-sql', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -440,9 +481,11 @@ function convertToSQL() {
         if (data.error) {
             sqlInput.value = `-- Error: ${data.error}`;
         } else {
-            // Handle both SQL and MongoDB responses
+            // Handle the response - backend returns 'query' property
             let generatedQuery = '';
-            if (data.sql) {
+            if (data.query) {
+                generatedQuery = data.query;
+            } else if (data.sql) {
                 generatedQuery = data.sql;
             } else if (data.mongodb) {
                 generatedQuery = data.mongodb;
@@ -495,7 +538,7 @@ function convertToNL() {
     nlInput.value = 'Converting...';
 
     // Send to backend for conversion
-    fetch('http://127.0.0.1:5001/convert-to-english', {
+    fetch('http://127.0.0.1:5501/convert-to-english', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -509,7 +552,21 @@ function convertToNL() {
     .then(response => {
         console.log('Response status:', response.status);
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            // Handle 403 errors specially for blocked operations
+            if (response.status === 403) {
+                return response.json().then(data => {
+                    throw new Error(`BLOCKED_OPERATION: ${data.error || 'Operation blocked'}`);
+                });
+            }
+            // For other errors, try to get the error message from the response
+            return response.json().then(data => {
+                console.log('Error response data:', data);
+                throw new Error(`HTTP ${response.status}: ${data.error || 'Unknown error'}`);
+            }).catch(parseError => {
+                console.log('Could not parse error response:', parseError);
+                // If we can't parse the JSON, just throw the status error
+                throw new Error(`HTTP error! status: ${response.status}`);
+            });
         }
         return response.json();
     })

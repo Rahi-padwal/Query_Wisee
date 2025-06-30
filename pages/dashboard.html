@@ -103,7 +103,7 @@
         <form id="cloudImportForm" onsubmit="submitCloudImport(event)">
           <label>Host URL:<br><input type="text" id="cloudHostUrl" required></label><br><br>
           <label>Username:<br><input type="text" id="cloudUsername" required></label><br><br>
-          <label>Password:<br><input type="password" id="cloudPassword" required></label><br><br>
+          <label>Password:<br><input type="password" id="cloudPassword"></label><br><br>
           <label>Database Name:<br><input type="text" id="cloudDbName" required></label><br><br>
           <div style="display: flex; gap: 10px;">
             <button type="submit" class="btn primary">Import</button>
@@ -125,7 +125,7 @@
         <form id="mysqlImportForm" onsubmit="submitMySQLImport(event)">
           <label>Database Name:<br><input type="text" id="mysqlDbName" required></label><br><br>
           <label>Username:<br><input type="text" id="mysqlUsername" required></label><br><br>
-          <label>Password:<br><input type="password" id="mysqlPassword" required></label><br><br>
+          <label>Password:<br><input type="password" id="mysqlPassword"></label><br><br>
           <div style="display: flex; gap: 10px;">
             <button type="submit" class="btn primary">Import</button>
             <button type="button" class="btn secondary" onclick="closeMySQLImportDialog()">Cancel</button>

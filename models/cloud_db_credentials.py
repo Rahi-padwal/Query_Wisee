@@ -48,4 +48,14 @@ def get_cloud_db_credentials(db_id):
         print(f"❌ Database error in get_cloud_db_credentials: {e}")
         return None
     finally:
+        conn.close()
+
+def delete_cloud_db_credentials(db_id):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("DELETE FROM cloud_db_credentials WHERE db_id = %s", (db_id,))
+            conn.commit()
+            return cursor.rowcount
+    finally:
         conn.close() 

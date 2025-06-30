@@ -158,7 +158,7 @@ def get_database_schema(db_name):
             conn = pymysql.connect(
                 host="localhost",
                 user="root",
-                password="Rakshita2305",
+                password="",
                 database=db_name,  # Connect to the actual database
                 cursorclass=pymysql.cursors.DictCursor
             )
@@ -262,3 +262,14 @@ def get_database_credentials(db_id):
             return None
     
     return None
+
+def delete_database(user_id, db_name):
+    """Delete a database from databases_info by user_id and db_name."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("DELETE FROM databases_info WHERE user_id = %s AND db_name = %s", (user_id, db_name))
+            conn.commit()
+            return cursor.rowcount
+    finally:
+        conn.close()

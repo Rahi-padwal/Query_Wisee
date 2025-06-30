@@ -9,7 +9,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
 
-  fetch(`http://127.0.0.1:5001/get-databases?user_id=${user.user_id}`)
+  fetch(`http://127.0.0.1:5501/get-databases?user_id=${user.user_id}`)
     .then((res) => res.json())
     .then((data) => {
       cachedData = data;
@@ -129,7 +129,7 @@ function submitMySQLImport(event) {
   const username = document.getElementById("mysqlUsername").value;
   const password = document.getElementById("mysqlPassword").value;
   
-  fetch("http://127.0.0.1:5001/import-database", {
+  fetch("http://127.0.0.1:5501/import-database", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -176,7 +176,7 @@ function submitCloudImport(event) {
   const username = document.getElementById("cloudUsername").value;
   const password = document.getElementById("cloudPassword").value;
   const db_name = document.getElementById("cloudDbName").value;
-  fetch("http://127.0.0.1:5001/import-cloud-database", {
+  fetch("http://127.0.0.1:5501/import-cloud-database", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -241,7 +241,7 @@ function submitMongoImport(event) {
     return;
   }
   
-  fetch("http://127.0.0.1:5001/import-mongodb", {
+  fetch("http://127.0.0.1:5501/import-mongodb", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(requestBody)
