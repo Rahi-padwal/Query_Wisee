@@ -135,21 +135,26 @@ function loadSchema() {
             
             // Display schema in the panel
             let schemaHtml = '';
-            schema.forEach(table => {
+            schema.forEach((table, idx) => {
                 if (!table.table_name || !Array.isArray(table.columns)) {
                     console.warn('Invalid table format:', table);
                     return;
                 }
 
-                schemaHtml += `<div class="table-info">`;
-                schemaHtml += `<h4>${table.table_name}</h4>`;
-                schemaHtml += `<ul>`;
+                // Each table gets a dropdown button and a hidden attribute list
+                const tableId = `table-attr-${idx}`;
+                schemaHtml += `<div class="table-info table-item">`;
+                schemaHtml += `<div style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="toggleAttributes('${tableId}')">`;
+                schemaHtml += `<span class="table-name">${table.table_name}</span>`;
+                schemaHtml += `<button class="dropdown-btn" style="background: none; border: none; color: #a084ee; font-size: 1.1em; cursor: pointer; margin-left: 8px;" tabindex="-1"><i class="fas fa-chevron-down" id="icon-${tableId}"></i></button>`;
+                schemaHtml += `</div>`;
+                schemaHtml += `<ul class="attribute-list" id="${tableId}" style="display: none; margin-top: 8px;">`;
                 table.columns.forEach(column => {
                     if (!column.name || !column.type) {
                         console.warn('Invalid column format:', column);
                         return;
                     }
-                    schemaHtml += `<li>${column.name} (${column.type})</li>`;
+                    schemaHtml += `<li class="attribute-item">${column.name} <span class="attribute-type">(${column.type})</span></li>`;
                 });
                 schemaHtml += `</ul>`;
                 schemaHtml += `</div>`;
@@ -160,6 +165,21 @@ function loadSchema() {
             }
             
             schemaContent.innerHTML = schemaHtml;
+
+            // Add dropdown toggle logic
+            window.toggleAttributes = function(attrId) {
+                const ul = document.getElementById(attrId);
+                const icon = document.getElementById('icon-' + attrId);
+                if (ul) {
+                    if (ul.style.display === 'none') {
+                        ul.style.display = 'block';
+                        if (icon) icon.classList.remove('fa-chevron-down'), icon.classList.add('fa-chevron-up');
+                    } else {
+                        ul.style.display = 'none';
+                        if (icon) icon.classList.remove('fa-chevron-up'), icon.classList.add('fa-chevron-down');
+                    }
+                }
+            };
         })
         .catch(error => {
             console.error('Error loading schema:', error);
