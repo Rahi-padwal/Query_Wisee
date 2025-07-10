@@ -60,22 +60,15 @@ def send_message():
         return jsonify({'status': 'ok'}), 200
     
     try:
-        print("\n=== Starting Chatbot Message Processing ===")
-        print("Request method:", request.method)
-        print("Request headers:", dict(request.headers))
-        
         # Check if API key is set
         if not GROQ_API_KEY:
             error_message = "GROQ_API_KEY is not set in environment variables"
-            print("❌ ERROR:", error_message)
             return jsonify({"error": error_message}), 500
 
         # Parse request data
         try:
             data = request.get_json()
-            print("Request data received:", data)
         except Exception as e:
-            print(f"Error parsing JSON: {e}")
             return jsonify({"error": "Invalid JSON data"}), 400
 
         user_id = data.get('user_id')
@@ -83,14 +76,8 @@ def send_message():
         message = data.get('message')
         chat_history = data.get('chat_history', [])
 
-        print(f"User ID: {user_id}")
-        print(f"Database: {db_name}")
-        print(f"Message: {message}")
-        print(f"Chat History Length: {len(chat_history)}")
-
         if not user_id or not db_name or not message:
             error_msg = f"Missing required data. User ID: {bool(user_id)}, DB name: {bool(db_name)}, Message: {bool(message)}"
-            print(f"❌ ERROR: {error_msg}")
             return jsonify({"error": error_msg}), 400
 
         # Get database type and schema using the shared utility
@@ -103,23 +90,14 @@ def send_message():
             result = cursor.fetchone()
             db_type = result['db_type'] if result else 'mysql'
             conn.close()
-            print(f"Database type detected: {db_type}")
-            print(f"Schema loaded successfully, {len(schema)} tables/collections")
         except Exception as e:
-            print(f"Error getting schema: {e}")
-            import traceback
-            traceback.print_exc()
             return jsonify({"error": f"Error retrieving database schema: {str(e)}"}), 500
 
         # Generate chatbot response
         try:
-            print("Generating chatbot response...")
             response_text = generate_chatbot_response(message, db_type, schema, chat_history)
-            print("Response generated successfully")
             
-            print("Saving chat message...")
             save_chat_message(user_id, db_name, message, response_text, db_type)
-            print("Chat message saved")
             
             return jsonify({
                 "response": response_text,
@@ -127,16 +105,10 @@ def send_message():
             }), 200
         except Exception as e:
             error_message = str(e)
-            print(f"Error generating response: {error_message}")
-            import traceback
-            traceback.print_exc()
             save_chat_message(user_id, db_name, message, error_message, db_type, is_error=True)
             return jsonify({"error": error_message}), 500
 
     except Exception as e:
-        print(f"❌ ERROR in /send-message: {e}")
-        import traceback
-        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 @chatbot_routes.route('/get-chat-history', methods=['GET'])
@@ -162,7 +134,6 @@ def get_chat_history():
             table_exists = cursor.fetchone()['table_exists'] > 0
             
             if not table_exists:
-                print("chat_history table does not exist, returning empty history")
                 conn.close()
                 return jsonify({"chat_history": []}), 200
             
@@ -187,16 +158,10 @@ def get_chat_history():
             return jsonify({"chat_history": chat_history}), 200
             
         except Exception as e:
-            print(f"Error retrieving chat history: {e}")
-            import traceback
-            traceback.print_exc()
             # Return empty history instead of error
             return jsonify({"chat_history": []}), 200
             
     except Exception as e:
-        print(f"❌ ERROR in /get-chat-history: {e}")
-        import traceback
-        traceback.print_exc()
         return jsonify({"chat_history": []}), 200
 
 def generate_chatbot_response(message, db_type, schema, chat_history):
@@ -252,7 +217,6 @@ Please provide a helpful response focused on learning and guidance:"""
             "stream": False
         }
         
-        print("Sending request to Groq API...")
         response = requests.post(
             'https://api.groq.com/openai/v1/chat/completions',
             headers=headers,
@@ -272,26 +236,18 @@ Please provide a helpful response focused on learning and guidance:"""
                 chatbot_response += "\n\n💡 **Note:** To execute this MongoDB query, please use the workspace area where you can enter queries manually. The chatbot is designed for learning and guidance only."
             else:
                 chatbot_response += "\n\n💡 **Note:** To execute this query, please use the workspace area where you can enter SQL queries manually. The chatbot is designed for learning and guidance only."
-        
-        print(f"Chatbot response generated: {len(chatbot_response)} characters")
         return chatbot_response
         
     except requests.exceptions.ConnectionError as e:
         error_msg = "Network Connection Error: Could not connect to Groq API. Please check your internet connection and DNS settings."
-        print(f"❌ ERROR: {error_msg} - {e}")
         raise Exception(error_msg)
     except requests.exceptions.Timeout:
         error_msg = "Request Timed Out: The request to Groq API took too long to respond."
-        print(f"❌ ERROR: {error_msg}")
         raise Exception(error_msg)
     except requests.exceptions.HTTPError as e:
         error_msg = f"Groq API Error: {e.response.status_code} - {e.response.text}"
-        print(f"❌ ERROR: {error_msg}")
         raise Exception(error_msg)
     except Exception as e:
-        print(f"Error generating chatbot response: {e}")
-        import traceback
-        traceback.print_exc()
         raise Exception(f"An unexpected error occurred while generating the chatbot response: {str(e)}")
 
 def create_schema_context(schema, db_type):
@@ -372,12 +328,7 @@ def save_chat_message(user_id, db_name, message, response, db_type, is_error=Fal
         conn.commit()
         conn.close()
         
-        print("Chat messages saved successfully")
-        
     except Exception as e:
-        print(f"Error saving chat message: {e}")
-        import traceback
-        traceback.print_exc()
-        # Don't fail the request if saving fails
+        pass  # Don't fail the request if saving fails
 
 # Remove the execute-chatbot-query route entirely 

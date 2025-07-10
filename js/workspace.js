@@ -6,6 +6,157 @@ const dbName = urlParams.get('db');
 let databaseSchema = null;
 let databaseType = null; // Store database type globally
 
+// History functionality
+let queryHistory = [];
+
+// Load history from database
+function loadHistory() {
+    console.log('Loading history for database:', dbName);
+    
+    // Get user data from localStorage
+    const user = JSON.parse(localStorage.getItem('user'));
+    const user_id = user ? user.user_id : null;
+    
+    if (!user_id) {
+        console.log('No user found, cannot load history');
+        updateHistoryDisplay();
+        return;
+    }
+    
+    fetch(`http://127.0.0.1:5501/get-query-history?user_id=${user_id}&db_name=${encodeURIComponent(dbName)}&limit=50`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.error) {
+                console.error('Error loading history:', data.error);
+                queryHistory = [];
+            } else {
+                queryHistory = data.history || [];
+                console.log('Loaded history items:', queryHistory.length);
+            }
+            updateHistoryDisplay();
+        })
+        .catch(error => {
+            console.error('Error loading history:', error);
+            queryHistory = [];
+            updateHistoryDisplay();
+        });
+}
+
+// Save history to database
+function saveHistory(title, query, naturalLanguage) {
+    console.log('Saving history for database:', dbName);
+    
+    // Get user data from localStorage
+    const user = JSON.parse(localStorage.getItem('user'));
+    const user_id = user ? user.user_id : null;
+    
+    if (!user_id) {
+        console.log('No user found, cannot save history');
+        return;
+    }
+    
+    fetch('http://127.0.0.1:5501/save-query-history', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            user_id: user_id,
+            db_name: dbName,
+            title: title,
+            query: query,
+            natural_language: naturalLanguage
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.error) {
+            console.error('Error saving history:', data.error);
+        } else {
+            console.log('History saved successfully');
+            // Reload history to get the updated list
+            loadHistory();
+        }
+    })
+    .catch(error => {
+        console.error('Error saving history:', error);
+    });
+}
+
+// Add item to history
+function addToHistory(title, query, naturalLanguage) {
+    saveHistory(title, query, naturalLanguage);
+}
+
+// Update history dropdown display
+function updateHistoryDisplay() {
+    const historyItems = document.getElementById('historyItems');
+    
+    if (queryHistory.length === 0) {
+        historyItems.innerHTML = '<div class="history-empty">No history yet</div>';
+        return;
+    }
+    
+    let html = '';
+    queryHistory.forEach(item => {
+        const timestamp = new Date(item.created_at).toLocaleString();
+        html += `
+            <div class="history-item" onclick="loadHistoryItem('${item.id}')">
+                <div class="history-title">${item.title}</div>
+                <div class="history-content">${item.query || item.natural_language}</div>
+                <div class="history-timestamp">${timestamp}</div>
+            </div>
+        `;
+    });
+    
+    historyItems.innerHTML = html;
+}
+
+// Load a history item into the input boxes
+function loadHistoryItem(itemId) {
+    const item = queryHistory.find(h => h.id == itemId);
+    if (item) {
+        const sqlInput = document.getElementById('sqlInput');
+        const nlInput = document.getElementById('nlInput');
+        
+        if (item.query) {
+            sqlInput.value = item.query;
+        }
+        if (item.natural_language) {
+            nlInput.value = item.natural_language;
+        }
+        
+        // Close dropdown
+        document.getElementById('historyDropdown').classList.remove('show');
+    }
+}
+
+// Toggle history dropdown
+function toggleHistoryDropdown() {
+    const dropdown = document.getElementById('historyDropdown');
+    dropdown.classList.toggle('show');
+}
+
+// Close history dropdown when clicking outside
+document.addEventListener('click', function(event) {
+    const historyContainer = document.querySelector('.history-container');
+    const dropdown = document.getElementById('historyDropdown');
+    
+    if (!historyContainer.contains(event.target)) {
+        dropdown.classList.remove('show');
+    }
+});
+
 // Function to fetch database type from backend
 function fetchDatabaseType() {
     if (!dbName) {
@@ -238,6 +389,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (sqlToMongoBtn) {
         sqlToMongoBtn.parentNode.removeChild(sqlToMongoBtn);
     }
+
+    // Load history on page load
+    loadHistory();
+    
+    // Add history button event listener
+    document.getElementById('historyBtn').addEventListener('click', toggleHistoryDropdown);
 });
 
 // Function to execute SQL query
@@ -247,6 +404,9 @@ function runQuery() {
         alert('Please enter a query');
         return;
     }
+
+    // Save to history
+    addToHistory('Query Execution', query, '');
 
     // Get user data from localStorage
     const user = JSON.parse(localStorage.getItem('user'));
@@ -453,6 +613,9 @@ function convertToSQL() {
         return;
     }
 
+    // Save to history
+    addToHistory('Convert to Query', '', englishQuery);
+
     // Get schema from localStorage
     const schema = JSON.parse(localStorage.getItem(`schema_${dbName}`));
     if (!schema) {
@@ -539,6 +702,9 @@ function convertToNL() {
         alert('Please enter a SQL query');
         return;
     }
+
+    // Save to history
+    addToHistory('Convert to English', sqlQuery, '');
 
     // Get schema from localStorage
     const schema = JSON.parse(localStorage.getItem(`schema_${dbName}`));
