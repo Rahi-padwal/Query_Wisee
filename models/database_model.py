@@ -158,7 +158,7 @@ def get_database_schema(db_name):
             conn = pymysql.connect(
                 host="localhost",
                 user="root",
-                password="",
+                password="Rakshita2305",
                 database=db_name,  # Connect to the actual database
                 cursorclass=pymysql.cursors.DictCursor
             )
@@ -269,6 +269,56 @@ def delete_database(user_id, db_name):
     try:
         with conn.cursor() as cursor:
             cursor.execute("DELETE FROM databases_info WHERE user_id = %s AND db_name = %s", (user_id, db_name))
+            conn.commit()
+            return cursor.rowcount
+    finally:
+        conn.close()
+
+def save_query_history(user_id, db_name, title, query, natural_language):
+    """Save a query history item to the database."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cursor:
+            sql = """
+                INSERT INTO query_history (user_id, db_name, title, query, natural_language, created_at)
+                VALUES (%s, %s, %s, %s, %s, NOW())
+            """
+            cursor.execute(sql, (user_id, db_name, title, query, natural_language))
+            conn.commit()
+            return cursor.lastrowid
+    finally:
+        conn.close()
+
+def get_query_history(user_id, db_name, limit=50):
+    """Get query history for a specific user and database."""
+    conn = get_connection()
+    try:
+        with conn.cursor(pymysql.cursors.DictCursor) as cursor:
+            sql = """
+                SELECT id, title, query, natural_language, created_at
+                FROM query_history 
+                WHERE user_id = %s AND db_name = %s
+                ORDER BY created_at DESC
+                LIMIT %s
+            """
+            cursor.execute(sql, (user_id, db_name, limit))
+            return cursor.fetchall()
+    finally:
+        conn.close()
+
+def delete_query_history(user_id, db_name, history_id=None):
+    """Delete query history items."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cursor:
+            if history_id:
+                # Delete specific history item
+                sql = "DELETE FROM query_history WHERE user_id = %s AND db_name = %s AND id = %s"
+                cursor.execute(sql, (user_id, db_name, history_id))
+            else:
+                # Delete all history for this user and database
+                sql = "DELETE FROM query_history WHERE user_id = %s AND db_name = %s"
+                cursor.execute(sql, (user_id, db_name))
             conn.commit()
             return cursor.rowcount
     finally:

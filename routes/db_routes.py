@@ -1,6 +1,6 @@
 # routes/db_routes.py
 from flask import Blueprint, request, jsonify
-from models.database_model import get_user_databases, import_database, get_database_schema, get_database_credentials, delete_database
+from models.database_model import get_user_databases, import_database, get_database_schema, get_database_credentials, delete_database, save_query_history, get_query_history, delete_query_history
 from utils.prompt_generator import (
     generate_english_to_sql_prompt, 
     generate_sql_to_english_prompt,
@@ -99,10 +99,7 @@ def convert_to_sql():
         db_name = data.get('dbName')
         schema = data.get('schema')
         
-        print(f"=== Convert to SQL Debug ===")
-        print(f"English prompt: {english}")
-        print(f"Database name: {db_name}")
-        print(f"Schema: {schema}")
+
         
         if not english or not db_name or not schema:
             return jsonify({"error": "Missing required data"}), 400
@@ -114,26 +111,18 @@ def convert_to_sql():
             result = cursor.fetchone()
             db_type = result['db_type'] if result else 'mysql'
             conn.close()
-            print(f"Detected database type: {db_type}")
+
         except Exception as e:
             db_type = 'mysql'
-            print(f"Error getting database type, defaulting to mysql: {e}")
             
         try:
             if db_type.lower() == 'mongodb':
-                print(f"Generating English to MongoDB prompt for: {english}")
                 prompt = generate_english_to_mongodb_prompt(english, schema)
                 system_content = "You are a MongoDB expert that converts English descriptions to MongoDB queries. Provide only the MongoDB query without any explanation."
             else:
-                print(f"Generating English to SQL prompt for: {english}")
                 prompt = generate_english_to_sql_prompt(english, schema)
                 system_content = "You are a SQL expert that converts English descriptions to SQL queries. Provide only the SQL query without any explanation."
-            
-            print(f"Generated prompt: {prompt}")
         except Exception as e:
-            print(f"Error generating prompt: {e}")
-            import traceback
-            traceback.print_exc()
             # Use fallback conversion
             if db_type.lower() == 'mongodb':
                 query = convert_english_to_mongodb(english, schema)
@@ -158,17 +147,13 @@ def convert_to_sql():
             "stream": False
         }
         
-        print(f"Sending request to Groq API...")
         try:
             response = requests.post('https://api.groq.com/openai/v1/chat/completions',
                 headers=headers,
                 json=request_body,
                 timeout=30
             )
-            print(f"Groq API response status: {response.status_code}")
-            print(f"Groq API response: {response.text}")
         except requests.exceptions.RequestException as e:
-            print(f"Error making request to Groq API: {e}")
             # Use fallback conversion
             if db_type.lower() == 'mongodb':
                 query = convert_english_to_mongodb(english, schema)
@@ -181,7 +166,6 @@ def convert_to_sql():
         elif response.status_code == 429:
             return jsonify({"error": "Rate limit exceeded. Please try again later."}), 500
         elif response.status_code != 200:
-            print(f"Groq API error: {response.status_code} - {response.text}")
             # Use fallback conversion
             if db_type.lower() == 'mongodb':
                 query = convert_english_to_mongodb(english, schema)
@@ -191,10 +175,8 @@ def convert_to_sql():
 
         try:
             response_data = response.json()
-            print(f"Response data: {response_data}")
             
             if 'choices' not in response_data or not response_data['choices']:
-                print("No choices in response, using fallback")
                 # Use fallback conversion
                 if db_type.lower() == 'mongodb':
                     query = convert_english_to_mongodb(english, schema)
@@ -203,11 +185,9 @@ def convert_to_sql():
                 return jsonify({"query": query}), 200
 
             query = response_data['choices'][0]['message']['content'].strip()
-            print(f"Generated query: {query}")
             
             # Check if query is empty or contains error indicators
             if not query or query.lower() in ['no query generated', 'error', 'failed']:
-                print("Query is empty or contains error, using fallback")
                 # Use fallback conversion
                 if db_type.lower() == 'mongodb':
                     query = convert_english_to_mongodb(english, schema)
@@ -216,7 +196,6 @@ def convert_to_sql():
             
             return jsonify({"query": query}), 200
         except (KeyError, IndexError) as e:
-            print(f"Error parsing Groq API response: {e}")
             # Use fallback conversion
             if db_type.lower() == 'mongodb':
                 query = convert_english_to_mongodb(english, schema)
@@ -225,9 +204,6 @@ def convert_to_sql():
             return jsonify({"query": query}), 200
             
     except Exception as e:
-        print(f"Unexpected error in convert-to-sql: {e}")
-        import traceback
-        traceback.print_exc()
         # Use fallback conversion
         try:
             if db_type.lower() == 'mongodb':
@@ -307,24 +283,18 @@ def convert_to_english():
             result = cursor.fetchone()
             db_type = result['db_type'] if result else 'mysql'
             conn.close()
-            print(f"Detected database type: {db_type}")
+
         except Exception as e:
             db_type = 'mysql'
-            print(f"Error getting database type, defaulting to mysql: {e}")
             
         try:
             if db_type.lower() == 'mongodb':
-                print(f"Generating MongoDB to English prompt for query: {query}")
                 prompt = generate_mongodb_to_english_prompt(query, schema)
                 system_content = "You are a MongoDB expert that explains MongoDB queries in plain English. Provide a clear and concise explanation of what the MongoDB query does."
             else:
-                print(f"Generating SQL to English prompt for query: {query}")
                 prompt = generate_sql_to_english_prompt(query, schema)
                 system_content = "You are a SQL expert that explains SQL queries in plain English. Provide a clear and concise explanation of what the SQL query does."
         except Exception as e:
-            print(f"Error generating prompt: {e}")
-            import traceback
-            traceback.print_exc()
             return jsonify({"error": f"Error generating prompt: {str(e)}"}), 500
         
         headers = {
@@ -436,21 +406,14 @@ def convert_sql_to_english(query):
 @db_routes.route('/execute-query', methods=['POST'])
 def execute_query():
     try:
-        print("=== Starting execute_query ===")
         data = request.get_json()
         
         db_name = data.get('dbName')
         query = data.get('query')
         user_id = data.get('user_id')
 
-        print(f"Received data - db_name: {db_name}, user_id: {user_id}, query: {query}")
-
         if not db_name or not query:
             return jsonify({"error": "Missing database name or query"}), 400
-
-        # Debug logging
-        print(f"Executing query for database: {db_name}, user_id: {user_id}")
-        print(f"Query: {query}")
 
         try:
             conn = get_connection()
@@ -467,49 +430,35 @@ def execute_query():
             if not db_info:
                 return jsonify({"error": f"Database '{db_name}' not found or access denied"}), 400
 
-            print(f"Database info: {db_info}")
-            print(f"Database type: {db_info.get('db_type', 'unknown')}")
+
         except Exception as e:
-            print(f"Error getting database info: {e}")
             return jsonify({"error": f"Error getting database info: {str(e)}"}), 500
 
         if db_info['db_type'] == 'mongodb':
             try:
-                print("Connecting to MongoDB...")
-                
-                # For MongoDB, try to connect directly to local MongoDB since no credentials are needed
-                print("Connecting to local MongoDB (no authentication required)...")
                 try:
                     # Connect to local MongoDB
                     client = MongoClient('mongodb://localhost:27017/', serverSelectionTimeoutMS=5000)
                     # Test the connection
                     client.admin.command('ping')
-                    print("Successfully connected to local MongoDB")
                     
                     # Check if database exists
                     if db_name not in client.list_database_names():
                         return jsonify({"error": f"MongoDB database '{db_name}' not found on local server"}), 400
                     
                     db = client[db_name]
-                    print(f"Connected to database: {db_name}")
-                    
-                    # For local MongoDB, allow all operations
-                    print("Executing MongoDB query on local database...")
-                    print(f"Query: {query}")
                     
                     if query.startswith('db.'):
                         parts = query.split('.')
                         if len(parts) >= 3:
                             collection_name = parts[1]
                             operation_part = '.'.join(parts[2:])
-                            print(f"Collection: {collection_name}, Operation: {operation_part}")
                             
                             # Check if collection exists
-                            if collection_name not in db.list_collection_names():
+                            if collection_name not in db.list_collection_names() and not (('createcollection' in operation_part.lower()) or ('drop' in operation_part.lower())):
                                 return jsonify({"error": f"Collection '{collection_name}' not found in database '{db_name}'"}), 400
                             
-                            collection = db[collection_name]
-                            print(f"Connected to collection: {collection_name}")
+                            collection = db[collection_name] if collection_name in db.list_collection_names() else None
                             
                             # Handle different MongoDB operations for local database
                             if 'find(' in operation_part:
@@ -554,10 +503,8 @@ def execute_query():
                                 end_idx = operation_part.rfind(')')
                                 if end_idx > start_idx:
                                     doc_data = operation_part[start_idx:end_idx].strip()
-                                    print(f"Document data: {doc_data}")
                                     try:
                                         document = json.loads(doc_data)
-                                        print(f"Document to insert: {document}")
                                         result = collection.insert_one(document)
                                         client.close()
                                         return jsonify({
@@ -568,7 +515,6 @@ def execute_query():
                                             "message": f"Document inserted successfully with ID: {result.inserted_id}"
                                         }), 200
                                     except json.JSONDecodeError as e:
-                                        print(f"JSON decode error: {e}")
                                         return jsonify({"error": f"Invalid JSON format for insert operation: {str(e)}"}), 400
                                 else:
                                     return jsonify({"error": "Invalid insert operation format"}), 400
@@ -578,7 +524,6 @@ def execute_query():
                                 end_idx = operation_part.rfind(')')
                                 if end_idx > start_idx:
                                     update_str = operation_part[start_idx:end_idx].strip()
-                                    print(f"Update string: {update_str}")
                                     try:
                                         parts = update_str.split(',', 1)
                                         if len(parts) == 2:
@@ -586,7 +531,6 @@ def execute_query():
                                             update_str = parts[1].strip()
                                             filter_doc = json.loads(filter_str)
                                             update_doc = json.loads(update_str)
-                                            print(f"Filter: {filter_doc}, Update: {update_doc}")
                                             
                                             if 'updateOne' in operation_part:
                                                 result = collection.update_one(filter_doc, {'$set': update_doc})
@@ -604,7 +548,6 @@ def execute_query():
                                         else:
                                             return jsonify({"error": "Invalid update operation format"}), 400
                                     except json.JSONDecodeError as e:
-                                        print(f"JSON decode error: {e}")
                                         return jsonify({"error": f"Invalid JSON format for update operation: {str(e)}"}), 400
                                 else:
                                     return jsonify({"error": "Invalid update operation format"}), 400
@@ -614,10 +557,8 @@ def execute_query():
                                 end_idx = operation_part.rfind(')')
                                 if end_idx > start_idx:
                                     filter_str = operation_part[start_idx:end_idx].strip()
-                                    print(f"Delete filter: {filter_str}")
                                     try:
                                         filter_doc = json.loads(filter_str)
-                                        print(f"Filter document: {filter_doc}")
                                         
                                         if 'deleteOne' in operation_part:
                                             result = collection.delete_one(filter_doc)
@@ -633,26 +574,48 @@ def execute_query():
                                             "message": f"Deleted {result.deleted_count} document(s)"
                                         }), 200
                                     except json.JSONDecodeError as e:
-                                        print(f"JSON decode error: {e}")
                                         return jsonify({"error": f"Invalid JSON format for delete operation: {str(e)}"}), 400
                                 else:
                                     return jsonify({"error": "Invalid delete operation format"}), 400
+                            elif 'createcollection' in operation_part.lower() or 'drop' in operation_part.lower():
+                                # DDL for MongoDB: create/drop collection
+                                # Execute the DDL
+                                result = None
+                                if 'createcollection' in operation_part.lower():
+                                    db.create_collection(collection_name)
+                                    result = {"status": "created"}
+                                elif 'drop' in operation_part.lower():
+                                    db.drop_collection(collection_name)
+                                    result = {"status": "dropped"}
+                                # After DDL, update schema_json
+                                from models.database_model import get_database_schema
+                                schema = get_database_schema(db_name)
+                                conn = get_connection()
+                                cursor = conn.cursor()
+                                cursor.execute("UPDATE databases_info SET schema_json = %s WHERE db_name = %s", (json.dumps(schema), db_name))
+                                conn.commit()
+                                conn.close()
+                                client.close()
+                                return jsonify({
+                                    "columns": ["status"],
+                                    "rows": [result],
+                                    "operation": "ddl",
+                                    "affected_rows": 0,
+                                    "message": f"Collection {collection_name} {result['status']} successfully. Schema updated."
+                                }), 200
                             else:
-                                return jsonify({"error": "Unsupported MongoDB operation. Supported: find, insert, update, delete"}), 400
+                                return jsonify({"error": "Unsupported MongoDB operation. Supported: find, insert, update, delete, createCollection, drop"}), 400
                         else:
                             return jsonify({"error": "Invalid MongoDB query format. Use: db.collection.operation()"}), 400
                     else:
                         return jsonify({"error": "MongoDB queries must start with 'db.'"}), 400
                 except Exception as e:
-                    print(f"Error connecting to local MongoDB: {e}")
                     return jsonify({"error": f"Failed to connect to local MongoDB: {str(e)}"}), 400
             except Exception as e:
-                print(f"Error in MongoDB execution: {e}")
                 return jsonify({"error": f"MongoDB error: {str(e)}"}), 500
                 
         elif db_info['db_type'] == 'cloud':
             try:
-                print("Connecting to cloud MySQL database...")
                 creds = get_cloud_db_credentials(db_info['db_id'])
                 
                 if not creds:
@@ -670,8 +633,6 @@ def execute_query():
                     write_timeout=30
                 )
                 
-                print("Connected to cloud MySQL database successfully")
-                
                 cursor = conn.cursor()
                 
                 # Check if query is a modification query for cloud databases
@@ -683,8 +644,6 @@ def execute_query():
                         "blocked_operation": True,
                         "message": "This operation is blocked to protect your cloud database."
                     }), 403
-
-                print("Executing MySQL query on cloud database...")
                 cursor.execute(query)
                 
                 if query_lower.startswith('select'):
@@ -701,13 +660,11 @@ def execute_query():
                         "affected_rows": len(rows)
                     }
                     
-                    print(f"Cloud MySQL SELECT query executed successfully, result count: {len(rows)}")
-                    print(f"Response data being sent: {response_data}")
+
                     return jsonify(response_data), 200
                 else:
                     conn.commit()
                     conn.close()
-                    print("Cloud MySQL query executed successfully")
                     return jsonify({
                         "columns": ["status"],
                         "rows": [{"status": "success"}],
@@ -717,7 +674,6 @@ def execute_query():
                     }), 200
                     
             except Exception as e:
-                print(f"Error in cloud MySQL execution: {e}")
                 try:
                     conn.rollback()
                     conn.close()
@@ -726,27 +682,42 @@ def execute_query():
                 return jsonify({"error": f"Cloud MySQL error: {str(e)}"}), 500
         else:
             try:
-                print("Connecting to local MySQL database...")
                 # For local databases, we don't need cloud credentials
                 # Just connect directly to the local database
                 conn = pymysql.connect(
                     host="localhost",
                     user="root",
-                    password="",
+                    password="Rakshita2305",
                     database=db_name,
                     cursorclass=pymysql.cursors.DictCursor,
                     autocommit=False
                 )
                 
-                print("Connected to local MySQL database successfully")
-                
                 cursor = conn.cursor()
-                
-                # For local databases, allow all types of queries
-                print("Executing MySQL query on local database...")
                 cursor.execute(query)
                 
                 query_lower = query.strip().lower()
+                
+                # DDL detection
+                is_ddl = any(query_lower.startswith(op) for op in ['create', 'alter', 'drop', 'truncate'])
+                if is_ddl:
+                    conn.commit()
+                    conn.close()
+                    # After DDL, update schema_json
+                    from models.database_model import get_database_schema
+                    schema = get_database_schema(db_name)
+                    conn2 = get_connection()
+                    cursor2 = conn2.cursor()
+                    cursor2.execute("UPDATE databases_info SET schema_json = %s WHERE db_name = %s", (json.dumps(schema), db_name))
+                    conn2.commit()
+                    conn2.close()
+                    return jsonify({
+                        "columns": ["status"],
+                        "rows": [{"status": "success"}],
+                        "operation": "ddl",
+                        "affected_rows": 0,
+                        "message": "DDL operation completed successfully. Schema updated."
+                    }), 200
                 
                 if query_lower.startswith('select'):
                     columns = [desc[0] for desc in cursor.description] if cursor.description else []
@@ -755,7 +726,7 @@ def execute_query():
                     conn.commit()
                     conn.close()
                     
-                    print(f"Local MySQL SELECT query executed successfully, result count: {len(rows)}")
+
                     return jsonify({
                         "columns": columns,
                         "rows": rows,
@@ -771,7 +742,7 @@ def execute_query():
                     
                     operation = "insert" if query_lower.startswith('insert') else "update" if query_lower.startswith('update') else "delete"
                     
-                    print(f"Local MySQL {operation.upper()} query executed successfully, affected rows: {affected_rows}")
+
                     return jsonify({
                         "columns": ["affected_rows"],
                         "rows": [{"affected_rows": affected_rows}],
@@ -786,7 +757,7 @@ def execute_query():
                     
                     operation = "create" if query_lower.startswith('create') else "alter" if query_lower.startswith('alter') else "drop" if query_lower.startswith('drop') else "truncate"
                     
-                    print(f"Local MySQL {operation.upper()} query executed successfully")
+
                     return jsonify({
                         "columns": ["status"],
                         "rows": [{"status": "success"}],
@@ -797,7 +768,7 @@ def execute_query():
                 else:
                     conn.commit()
                     conn.close()
-                    print("Local MySQL query executed successfully")
+
                     return jsonify({
                         "columns": ["status"],
                         "rows": [{"status": "success"}],
@@ -807,7 +778,6 @@ def execute_query():
                     }), 200
                     
             except Exception as e:
-                print(f"Error in local MySQL execution: {e}")
                 try:
                     conn.rollback()
                     conn.close()
@@ -816,9 +786,6 @@ def execute_query():
                 return jsonify({"error": f"Local MySQL error: {str(e)}"}), 500
 
     except Exception as e:
-        print(f"Unexpected error in execute_query: {e}")
-        import traceback
-        traceback.print_exc()
         return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
 
 @db_routes.route('/import-cloud-database', methods=['POST'])
@@ -1023,9 +990,9 @@ def delete_database_route():
     if not user_id or not db_name:
         return jsonify({'error': 'user_id and db_name are required'}), 400
     try:
-        deleted = delete_database(user_id, db_name)
         if db_type == 'cloud' and db_id:
             delete_cloud_db_credentials(db_id)
+        deleted = delete_database(user_id, db_name)
         return jsonify({'message': 'Database deleted successfully.'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1035,7 +1002,6 @@ def test_mongodb():
     """Test endpoint to check MongoDB connectivity and database registration"""
     try:
         db_name = request.args.get('db_name', 'ecommerce')
-        print(f"Testing MongoDB for database: {db_name}")
         
         # Test 1: Check if database is registered
         conn = get_connection()
@@ -1047,13 +1013,10 @@ def test_mongodb():
         if not db_info:
             return jsonify({"error": f"Database '{db_name}' not found in databases_info table"}), 404
         
-        print(f"Database info: {db_info}")
-        
         # Test 2: Check MongoDB connection
         try:
             client = MongoClient('mongodb://localhost:27017/', serverSelectionTimeoutMS=5000)
             client.admin.command('ping')
-            print("MongoDB connection successful")
             
             # Test 3: Check if database exists
             if db_name not in client.list_database_names():
@@ -1062,14 +1025,12 @@ def test_mongodb():
             
             db = client[db_name]
             collections = db.list_collection_names()
-            print(f"Collections found: {collections}")
             
             # Test 4: Try a simple query
             if collections:
                 collection_name = collections[0]
                 collection = db[collection_name]
                 sample = collection.find_one()
-                print(f"Sample document from {collection_name}: {sample}")
             
             client.close()
             
@@ -1081,9 +1042,62 @@ def test_mongodb():
             }), 200
             
         except Exception as e:
-            print(f"MongoDB connection error: {e}")
             return jsonify({"error": f"MongoDB connection failed: {str(e)}"}), 500
             
     except Exception as e:
-        print(f"Test error: {e}")
         return jsonify({"error": f"Test failed: {str(e)}"}), 500
+
+@db_routes.route('/save-query-history', methods=['POST'])
+def save_history():
+    """Save a query history item."""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        db_name = data.get('db_name')
+        title = data.get('title')
+        query = data.get('query', '')
+        natural_language = data.get('natural_language', '')
+        
+        if not all([user_id, db_name, title]):
+            return jsonify({'error': 'Missing required fields'}), 400
+            
+        history_id = save_query_history(user_id, db_name, title, query, natural_language)
+        return jsonify({'message': 'History saved successfully', 'history_id': history_id}), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@db_routes.route('/get-query-history', methods=['GET'])
+def get_history():
+    """Get query history for a user and database."""
+    try:
+        user_id = request.args.get('user_id')
+        db_name = request.args.get('db_name')
+        limit = int(request.args.get('limit', 50))
+        
+        if not user_id or not db_name:
+            return jsonify({'error': 'Missing user_id or db_name'}), 400
+            
+        history = get_query_history(user_id, db_name, limit)
+        return jsonify({'history': history}), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@db_routes.route('/delete-query-history', methods=['DELETE'])
+def delete_history():
+    """Delete query history items."""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        db_name = data.get('db_name')
+        history_id = data.get('history_id')  # Optional: delete specific item
+        
+        if not user_id or not db_name:
+            return jsonify({'error': 'Missing user_id or db_name'}), 400
+            
+        deleted_count = delete_query_history(user_id, db_name, history_id)
+        return jsonify({'message': f'Deleted {deleted_count} history items'}), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

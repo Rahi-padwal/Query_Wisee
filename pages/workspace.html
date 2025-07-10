@@ -70,6 +70,110 @@
       height: 100vh;
       background: linear-gradient(135deg, #181622 0%, #221c36 100%);
     }
+    
+    /* History Button Styles */
+    .history-container {
+      position: relative;
+      display: inline-block;
+      margin-left: 15px;
+    }
+    
+    .history-btn {
+      background: #6c5ce7;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      font-size: 16px;
+    }
+    
+    .history-btn:hover {
+      background: #5a4fcf;
+      transform: scale(1.05);
+    }
+    
+    .history-dropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      background: #2d2d2d;
+      border: 1px solid #444;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      min-width: 300px;
+      max-width: 400px;
+      max-height: 400px;
+      overflow-y: auto;
+      z-index: 1000;
+      display: none;
+    }
+    
+    .history-dropdown.show {
+      display: block;
+    }
+    
+    .history-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid #444;
+      font-weight: bold;
+      color: #fff;
+      background: #3a3a3a;
+    }
+    
+    .history-item {
+      padding: 12px 16px;
+      border-bottom: 1px solid #333;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+    
+    .history-item:hover {
+      background: #3a3a3a;
+    }
+    
+    .history-item:last-child {
+      border-bottom: none;
+    }
+    
+    .history-title {
+      font-weight: bold;
+      color: #fff;
+      margin-bottom: 4px;
+      font-size: 14px;
+    }
+    
+    .history-content {
+      color: #ccc;
+      font-size: 12px;
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .history-timestamp {
+      color: #888;
+      font-size: 11px;
+    }
+    
+    .history-empty {
+      padding: 20px;
+      text-align: center;
+      color: #888;
+      font-style: italic;
+    }
+    
+    .top-info {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+    }
   </style>
 </head>
 <body>
@@ -83,7 +187,22 @@
     <!-- Main: Query Area -->
     <main class="query-area">
       <!-- Top Info -->
-      <div class="db-name" id="dbNameLabel"></div>
+      <div class="top-info">
+        <div class="db-name" id="dbNameLabel"></div>
+        <div class="history-container">
+          <button class="history-btn" id="historyBtn" title="Query History">
+            <i class="fas fa-history"></i>
+          </button>
+          <div class="history-dropdown" id="historyDropdown">
+            <div class="history-header">
+              <i class="fas fa-history"></i> Query History
+            </div>
+            <div id="historyItems">
+              <div class="history-empty">No history yet</div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <!-- Query Inputs -->
       <div class="query-boxes">
