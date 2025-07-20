@@ -7,174 +7,7 @@
   <link rel="stylesheet" href="../styles/workspace.css" />
   <link rel="stylesheet" href="../styles/chatbot.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <style>
-    .voice-btn {
-      width: 40px;
-      height: 40px;
-      background: #4a90e2;
-      color: white;
-      border: none;
-      border-radius: 50%;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.3s ease;
-      margin-left: 10px;
-    }
-    .voice-btn:hover {
-      background: #357abd;
-    }
-    .voice-btn.recording {
-      background: #e74c3c;
-      animation: pulse 1.5s infinite;
-    }
-    @keyframes pulse {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.1); }
-      100% { transform: scale(1); }
-    }
-    .voice-btn i {
-      font-size: 18px;
-    }
-    .query-boxes {
-      display: flex;
-      gap: 20px;
-      margin-bottom: 20px;
-    }
-    .box {
-      flex: 1;
-      min-width: 0;
-      display: flex;
-      flex-direction: column;
-    }
-    .box textarea {
-      flex: 1;
-      min-height: 150px;
-      resize: vertical;
-      margin-bottom: 10px;
-    }
-    .btn-group {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .btn-group button {
-      white-space: nowrap;
-    }
-    .workspace-container {
-      display: grid;
-      grid-template-columns: 250px 2.5fr 1.2fr;
-      gap: 20px;
-      padding: 20px;
-      height: 100vh;
-      background: linear-gradient(135deg, #181622 0%, #221c36 100%);
-    }
-    
-    /* History Button Styles */
-    .history-container {
-      position: relative;
-      display: inline-block;
-      margin-left: 15px;
-    }
-    
-    .history-btn {
-      background: #6c5ce7;
-      color: white;
-      border: none;
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.3s ease;
-      font-size: 16px;
-    }
-    
-    .history-btn:hover {
-      background: #5a4fcf;
-      transform: scale(1.05);
-    }
-    
-    .history-dropdown {
-      position: absolute;
-      top: 100%;
-      right: 0;
-      background: #2d2d2d;
-      border: 1px solid #444;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-      min-width: 300px;
-      max-width: 400px;
-      max-height: 400px;
-      overflow-y: auto;
-      z-index: 1000;
-      display: none;
-    }
-    
-    .history-dropdown.show {
-      display: block;
-    }
-    
-    .history-header {
-      padding: 12px 16px;
-      border-bottom: 1px solid #444;
-      font-weight: bold;
-      color: #fff;
-      background: #3a3a3a;
-    }
-    
-    .history-item {
-      padding: 12px 16px;
-      border-bottom: 1px solid #333;
-      cursor: pointer;
-      transition: background 0.2s ease;
-    }
-    
-    .history-item:hover {
-      background: #3a3a3a;
-    }
-    
-    .history-item:last-child {
-      border-bottom: none;
-    }
-    
-    .history-title {
-      font-weight: bold;
-      color: #fff;
-      margin-bottom: 4px;
-      font-size: 14px;
-    }
-    
-    .history-content {
-      color: #ccc;
-      font-size: 12px;
-      margin-bottom: 4px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    
-    .history-timestamp {
-      color: #888;
-      font-size: 11px;
-    }
-    
-    .history-empty {
-      padding: 20px;
-      text-align: center;
-      color: #888;
-      font-style: italic;
-    }
-    
-    .top-info {
-      display: flex;
-      align-items: center;
-      margin-bottom: 20px;
-    }
-  </style>
+ 
 </head>
 <body>
   <div class="workspace-container">
@@ -205,8 +38,8 @@
       </div>
 
       <!-- Query Inputs -->
-      <div class="query-boxes">
-        <div class="box">
+      <div class="input-stack">
+        <div class="query-input-box">
           <label for="sqlInput">Query</label>
           <textarea id="sqlInput" placeholder="Write your query here (SQL or MongoDB)..."></textarea>
           <div class="btn-group">
@@ -214,7 +47,7 @@
             <button onclick="runQuery()">Run</button>
           </div>
         </div>
-        <div class="box">
+        <div class="natural-language-input-box">
           <label for="nlInput">Natural Language</label>
           <textarea id="nlInput" placeholder="Write your question in English..."></textarea>
           <div class="btn-group">
@@ -230,20 +63,26 @@
       <div class="output-box" id="outputBox">Query results will appear here.</div>
     </main>
 
-    <!-- Right: AI Chatbot Placeholder -->
-    <aside class="chatbot-container" style="max-width: 400px; min-width: 320px; margin-left: 24px; max-height: 90vh; height: 100%;">
-      <div class="chatbot-header">
-        <h3>AI Chatbot</h3>
-        <div class="chatbot-actions">
-          <button onclick="window.chatbot && window.chatbot.clearChat()" title="Clear chat">🗑️</button>
+    <!-- Floating Chatbot Icon and Overlay Panel -->
+    <div id="chatbot-icon" title="Open Chatbot">
+      <span style="font-size: 2em; color: #fff;">💬</span>
+    </div>
+    <div id="chatbot-panel">
+      <button class="close-btn" title="Close">&times;</button>
+      <div class="chatbot-container">
+        <div class="chatbot-header">
+          <h3>AI Chatbot</h3>
+          <div class="chatbot-actions">
+            <button onclick="window.chatbot && window.chatbot.clearChat()" title="Clear chat">🗑️</button>
+          </div>
+        </div>
+        <div class="chatbot-messages" id="chatbot-messages"></div>
+        <div class="chatbot-input-container">
+          <textarea id="chatbot-message-input" class="chatbot-message-input" placeholder="Type your message..." rows="1"></textarea>
+          <button id="chatbot-send-btn" class="chatbot-send-btn" title="Send"><i class="fas fa-paper-plane"></i></button>
         </div>
       </div>
-      <div class="chatbot-messages" id="chatbot-messages"></div>
-      <div class="chatbot-input-container">
-        <textarea id="chatbot-message-input" class="chatbot-message-input" placeholder="Type your message..." rows="1"></textarea>
-        <button id="chatbot-send-btn" class="chatbot-send-btn" title="Send"><i class="fas fa-paper-plane"></i></button>
-      </div>
-    </aside>
+    </div>
   </div>
 
   <script>
@@ -251,6 +90,16 @@
     console.log('Page loaded');
     document.getElementById('voiceBtn').addEventListener('click', function() {
       console.log('Voice button clicked');
+    });
+    // Chatbot expand/contract logic
+    const chatbotIcon = document.getElementById('chatbot-icon');
+    const chatbotPanel = document.getElementById('chatbot-panel');
+    const closeBtn = document.querySelector('#chatbot-panel .close-btn');
+    chatbotIcon.addEventListener('click', () => {
+      chatbotPanel.classList.toggle('open');
+    });
+    closeBtn.addEventListener('click', () => {
+      chatbotPanel.classList.remove('open');
     });
   </script>
   <script src="../js/workspace.js"></script>
