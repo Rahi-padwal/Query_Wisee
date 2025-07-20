@@ -16,11 +16,15 @@ body {
 
 .schema-panel {
   background: rgba(26, 26, 31, 0.85);
-  border-radius: 8px;
+  border-radius: 2px;
   padding: 20px;
   box-shadow: 0 8px 40px 0 rgba(104, 43, 215, 0.15);
   border: 1.5px solid rgba(104, 43, 215, 0.18);
   overflow-y: auto;
+  margin-left: -20px;
+  margin-top: -20px;
+  margin-bottom: 0px;
+  margin-right: 0;
 }
 
 .schema-panel h3 {
@@ -79,6 +83,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  padding-right: 80px;
 }
 
 .db-name {
@@ -211,6 +216,8 @@ body {
   white-space: pre-wrap;
   overflow-x: auto;
   color: #4747f8;
+  margin-right: 0;
+  padding-right: 40px;
 }
 
 .chatbot-placeholder {
@@ -227,3 +234,317 @@ body {
   color: #682bd7;
   margin-bottom: 0.5rem;
 }
+
+
+.voice-btn {
+  width: 40px;
+  height: 40px;
+  background: #4a90e2;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  margin-left: 10px;
+}
+.voice-btn:hover {
+  background: #357abd;
+}
+.voice-btn.recording {
+  background: #e74c3c;
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+.voice-btn i {
+  font-size: 18px;
+}
+.query-boxes {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+.box {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.box textarea {
+  flex: 1;
+  min-height: 150px;
+  resize: vertical;
+  margin-bottom: 10px;
+}
+.btn-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.btn-group button {
+  white-space: nowrap;
+}
+.workspace-container {
+  display: grid;
+  grid-template-columns: 250px 2.5fr 1.2fr;
+  gap: 20px;
+  padding: 20px;
+  height: 100vh;
+  background: linear-gradient(135deg, #181622 0%, #221c36 100%);
+  margin: 0;
+}
+
+/* History Button Styles */
+.history-container {
+  position: relative;
+  display: inline-block;
+  margin-left: 15px;
+}
+
+.history-btn {
+  background: #6c5ce7;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  font-size: 16px;
+}
+
+.history-btn:hover {
+  background: #5a4fcf;
+  transform: scale(1.05);
+}
+
+.history-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: #2d2d2d;
+  border: 1px solid #444;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  min-width: 300px;
+  max-width: 400px;
+  max-height: 400px;
+  overflow-y: auto;
+  z-index: 1000;
+  display: none;
+}
+
+.history-dropdown.show {
+  display: block;
+}
+
+.history-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid #444;
+  font-weight: bold;
+  color: #fff;
+  background: #3a3a3a;
+}
+
+.history-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid #333;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.history-item:hover {
+  background: #3a3a3a;
+}
+
+.history-item:last-child {
+  border-bottom: none;
+}
+
+.history-title {
+  font-weight: bold;
+  color: #fff;
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.history-content {
+  color: #ccc;
+  font-size: 12px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-timestamp {
+  color: #888;
+  font-size: 11px;
+}
+
+.history-empty {
+  padding: 20px;
+  text-align: center;
+  color: #888;
+  font-style: italic;
+}
+
+.top-info {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+/* --- Floating Chatbot Icon --- */
+#chatbot-icon {
+  position: fixed;
+  bottom: 32px;
+  right: 25px;
+  width: 56px;
+  height: 56px;
+  background: #6C47FF;
+  border-radius: 50%;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 9999;
+  transition: box-shadow 0.2s;
+}
+#chatbot-icon:hover {
+  box-shadow: 0 4px 24px rgba(108,71,255,0.25);
+}
+
+/* --- Expandable Chatbot Overlay Panel --- */
+#chatbot-panel {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  top: 0;
+  left: 250px; /* Do not overlap schema panel */
+  background: rgba(24, 18, 43, 0.98);
+  border-radius: 0 0 0 18px;
+  box-shadow: -4px 0 32px rgba(0,0,0,0.18);
+  z-index: 10000;
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  transition: opacity 0.3s, transform 0.3s;
+}
+#chatbot-panel.open {
+  display: flex;
+  animation: chatbotExpand 0.3s;
+}
+@keyframes chatbotExpand {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+#chatbot-panel .close-btn {
+  position: absolute;
+  top: 18px;
+  right: 24px;
+  background: transparent;
+  border: none;
+  font-size: 2em;
+  color: #fff;
+  cursor: pointer;
+  z-index: 1;
+}
+
+/* Hide static chatbot box when overlay is open */
+#chatbot-panel.open ~ .chatbot-container {
+  display: none !important;
+}
+
+/* Make main content expand when chatbot is closed (if you use grid/flex, adjust as needed) */
+@media (min-width: 900px) {
+  .workspace-container {
+    grid-template-columns: 250px 1fr;
+  }
+  .chatbot-container {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  #chatbot-panel {
+    left: 0;
+    border-radius: 0;
+  }
+}
+
+/* Remove old horizontal input row styles */
+.query-boxes, .input-row { display: block; gap: 0; margin-bottom: 0; }
+
+/* Expand boxes to fill horizontal space and reduce side gaps */
+.input-stack {
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  margin: 0;
+  width: 100%;
+  max-width: 100%;
+  margin-top:-30px;
+}
+
+/* Increase the heights of the main boxes to fill empty space */
+.query-input-box, .natural-language-input-box {
+  flex: 1;
+  min-width: 0;
+  min-height: 180px;
+  padding: 16px 22px 14px 22px;
+}
+
+.query-input-box label, .natural-language-input-box label {
+  font-weight: 500;
+  color: #e0e0f0;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.query-input-box textarea, .natural-language-input-box textarea {
+  width: 100%;
+  min-height: 220px;
+  padding: 10px 12px;
+  border: 1.5px solid #682bd7;
+  border-radius: 7px;
+  font-family: 'Courier New', monospace;
+  font-size: 15px;
+  resize: vertical;
+  margin-bottom: 8px;
+  background: rgba(255,255,255,0.04);
+  color: #fff;
+}
+
+.query-input-box textarea:focus, .natural-language-input-box textarea:focus {
+  outline: none;
+  border-color: #a084ee;
+  box-shadow: 0 0 0 2px rgba(104, 43, 215, 0.13);
+  background: rgba(104, 43, 215, 0.07);
+}
+
+.btn-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 0;
+}
+
+.query-output-box, .output-box {
+  min-height: 300px;
+  margin-left:20px;
+  padding: 16px 22px;
+  margin-top:-20px;
+  border-radius:8px;
+}
+
